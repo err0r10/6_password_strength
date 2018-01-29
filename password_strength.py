@@ -1,6 +1,5 @@
 import re
 import sys
-import json
 from os.path import exists
 
 
@@ -9,18 +8,19 @@ def load_data(filepath):
         return password_file.read().split("\n")
 
 
-def get_password_strength(login, password, birthday):
-    return [ password,
-       #      sum ([
-        check_empty_password(password),
-        check_length_password(password),
-        check_numbers_password(password),
-        check_lower_and_upper(password),
-        check_blacklist_password(password),
-        check_symbols_password(password),
-        check_password_login(login, password),
-        check_password_birthday(birthday, password)
-        #     ])
+def get_password_strength(login, password):
+    special_symbols = "#@$"
+    return [
+             sum ([
+                check_empty_password(password),
+                check_length_password(password),
+                check_numbers_password(password),
+                check_lower_and_upper(password),
+                check_blacklist_password(password),
+                check_spec_symbols_password(password, special_symbols),
+                check_other_symbol(password, special_symbols),
+                check_password_login(login, password)
+             ])
     ]
 
 
@@ -35,7 +35,7 @@ def check_length_password(password):
 
 
 def check_numbers_password(password):
-    return re.findall(r'\d+', password) > 0
+    return len(re.findall(r'\d+', password)) > 0
 
 
 def check_lower_and_upper(password):
@@ -46,24 +46,24 @@ def check_lower_and_upper(password):
 
 def check_blacklist_password(password):
     blacklist_password = ["123456", "qwerty", "drop table user", ""]
-    return password in blacklist_password
+    return password not in blacklist_password
 
 
-def check_symbols_password(password):
-    special_symbols = re.compile("[#@$]")
-    find_special_symbols = re.findall(special_symbols, password)
+def check_spec_symbols_password(password, special_symbols):
+    find_special_symbols = [
+        symbol for symbol in special_symbols if symbol in password
+    ]
+    return len(find_special_symbols) > 0
+
+
+def check_other_symbol(password, special_symbols):
     find_all_symbols = re.findall(r"\W+", password)
-    if find_special_symbols:
-        return False
-    return len(find_special_symbols) == len(find_all_symbols)
+    string_all_symbol = ''.join(find_all_symbols)
+    return all(s in set(special_symbols) for s in set(string_all_symbol))
 
 
 def check_password_login(login, password):
-    return login in password
-
-
-def check_password_birthday(birthday, password):
-    return re.sub(r'\W+', '', birthday) in password
+    return login not in password
 
 
 if __name__ == '__main__':
@@ -72,5 +72,5 @@ if __name__ == '__main__':
     file_path = sys.argv[1]
     accounts = load_data(file_path)
     for account in accounts:
-        login, password, birthday = account.split()
-        print(get_password_strength(login, password, birthday))
+        login, password = account.split(",")
+        print(get_password_strength(login, password))
